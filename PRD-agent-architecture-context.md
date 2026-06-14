@@ -190,6 +190,19 @@ stories:
       - "Each of architecture/current, architecture/future, architecture/decisions, repo-standards, and agent-guidelines contains at least one .md file"
       - "Each placeholder .md file under architecture, repo-standards, and agent-guidelines has parseable YAML frontmatter"
       - "Each placeholder .md file's frontmatter includes a 'status' field and a 'last_updated' field"
+    test_criteria:
+      - "os.path.isdir('architecture/current') is True"
+      - "os.path.isdir('architecture/future') is True"
+      - "os.path.isdir('architecture/decisions') is True"
+      - "os.path.isdir('repo-standards') is True"
+      - "os.path.isdir('agent-guidelines') is True"
+      - "os.path.isdir('agent-integration/templates') is True"
+      - "Each directory under architecture, repo-standards, agent-guidelines has >= 1 .md file"
+      - "yaml.safe_load of frontmatter block from each .md returns dict with 'status' and 'last_updated' keys"
+    test_files:
+      - "tests/test_s001_scaffold.py"
+    notes: "Frontmatter delimited by '---' lines at top of file. Use PyYAML to parse."
+    passes: false
 
   - story_id: "S-002"
     title: "Create and validate manifest.yaml schema"
@@ -204,6 +217,16 @@ stories:
       - "Each entry under categories.*.files contains a 'path' field and an 'applies_to' field"
       - "Validation raises a clear error identifying the entry when 'path' or 'applies_to' is missing"
       - "Validation raises a clear error when an 'applies_to' value is not one of: all, pipeline-development, code-review, architecture-review"
+    test_criteria:
+      - "yaml.safe_load('manifest.yaml') succeeds without exception"
+      - "manifest keys include 'version', 'last_updated', 'categories'"
+      - "For each category and each file entry: 'path' key present, else AssertionError names the entry"
+      - "For each category and each file entry: 'applies_to' key present, else AssertionError names the entry"
+      - "Each applies_to value in ALLOWED_TASK_TYPES = {'all','pipeline-development','code-review','architecture-review'}"
+    test_files:
+      - "tests/test_s002_manifest_schema.py"
+    notes: "ALLOWED_TASK_TYPES defined as a constant in the test file."
+    passes: false
 
   - story_id: "S-003"
     title: "Validate manifest file references resolve to real files"
@@ -214,6 +237,12 @@ stories:
     acceptance_criteria:
       - "Test passes when every path in manifest.yaml categories.*.files exists on disk"
       - "Test fails and names the specific missing path when a referenced file does not exist"
+    test_criteria:
+      - "For each file entry path in manifest: os.path.isfile(path) is True, else AssertionError('Missing file: <path>')"
+    test_files:
+      - "tests/test_s003_manifest_file_refs.py"
+    notes: "Paths in manifest are relative to repo root."
+    passes: false
 
   - story_id: "S-004"
     title: "Validate frontmatter across content files"
@@ -225,6 +254,15 @@ stories:
     acceptance_criteria:
       - "Test passes for all placeholder markdown files created in S-001"
       - "Test fails and names the specific file and missing field when a file under architecture, repo-standards, or agent-guidelines lacks 'status' or 'last_updated' in its frontmatter"
+    test_criteria:
+      - "glob all .md files under architecture/, repo-standards/, agent-guidelines/"
+      - "For each file: parse frontmatter between first pair of '---' delimiters"
+      - "Assert 'status' in frontmatter, else AssertionError('<file>: missing field: status')"
+      - "Assert 'last_updated' in frontmatter, else AssertionError('<file>: missing field: last_updated')"
+    test_files:
+      - "tests/test_s004_frontmatter.py"
+    notes: "Reuse frontmatter parsing logic; consider a conftest helper."
+    passes: false
 
   - story_id: "S-005"
     title: "Create skill-spec.yaml"
@@ -238,6 +276,16 @@ stories:
       - "skill-spec.yaml contains top-level keys: name, description, auth, endpoints, output_format"
       - "auth section specifies type: github-pat, a scope description, and a header format string"
       - "endpoints section defines both 'manifest' and 'file' entries as GitHub Contents API paths"
+    test_criteria:
+      - "os.path.isfile('agent-integration/skill-spec.yaml') is True"
+      - "yaml.safe_load succeeds"
+      - "All of name, description, auth, endpoints, output_format present as top-level keys"
+      - "spec['auth']['type'] == 'github-pat'"
+      - "'manifest' in spec['endpoints'] and 'file' in spec['endpoints']"
+    test_files:
+      - "tests/test_s005_s006_skill_spec.py"
+    notes: "GitHub Contents API base: https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+    passes: false
 
   - story_id: "S-006"
     title: "Validate skill-spec.yaml schema"
@@ -249,6 +297,13 @@ stories:
       - "Test passes when skill-spec.yaml contains name, description, auth, endpoints, and output_format"
       - "Test fails and names the specific missing key when name, description, auth, endpoints, or output_format is absent"
       - "Test fails when endpoints is missing either 'manifest' or 'file'"
+    test_criteria:
+      - "For each required key in ['name','description','auth','endpoints','output_format']: assert key in spec, else AssertionError('skill-spec.yaml missing key: <key>')"
+      - "For each required endpoint in ['manifest','file']: assert key in spec['endpoints'], else AssertionError('skill-spec.yaml endpoints missing: <key>')"
+    test_files:
+      - "tests/test_s005_s006_skill_spec.py"
+    notes: "S-005 and S-006 share a test file; S-005 creates the file, S-006 adds schema tests."
+    passes: false
 
   - story_id: "S-007"
     title: "Create generic HTTP template"
@@ -265,6 +320,16 @@ stories:
       - "Template includes a curl example for the 'file' endpoint matching skill-spec.yaml's endpoints.file pattern"
       - "Template includes the Authorization: Bearer header and the application/vnd.github.raw+json Accept header in both examples"
       - "Template demonstrates retrieving the token from an OS-native credential store (macOS Keychain via security, Linux secret-tool, or Windows Credential Manager via cmdkey/keyring) rather than a hardcoded value or plaintext file"
+    test_criteria:
+      - "os.path.isfile('agent-integration/templates/generic-http-template.md') is True"
+      - "File content contains 'application/vnd.github.raw+json'"
+      - "File content contains 'Authorization: Bearer'"
+      - "File content contains 'security find-generic-password' OR 'secret-tool lookup' OR 'cmdkey'"
+      - "File content contains the manifest endpoint URL pattern from skill-spec.yaml"
+    test_files:
+      - "tests/test_s007_generic_template.py"
+    notes: "Token retrieval must use OS credential store, not env vars or plaintext files."
+    passes: false
 
   - story_id: "S-008"
     title: "Write agent-integration README"
@@ -278,6 +343,18 @@ stories:
       - "agent-integration/README.md exists"
       - "README references agent-integration/templates/generic-http-template.md by path"
       - "README contains sections covering: PAT generation, OS-native credential store storage (macOS, Linux, and Windows), template selection, and setup verification"
+    test_criteria:
+      - "os.path.isfile('agent-integration/README.md') is True"
+      - "File content contains 'agent-integration/templates/generic-http-template.md'"
+      - "File content contains 'macOS' or 'Keychain'"
+      - "File content contains 'Linux' or 'secret-tool'"
+      - "File content contains 'Windows' or 'cmdkey'"
+      - "File content contains 'fine-grained' (PAT generation section)"
+      - "File content contains 'manifest.yaml' (setup verification section)"
+    test_files:
+      - "tests/test_s008_readme.py"
+    notes: "README is documentation only; no code to implement."
+    passes: false
 ```
 
 ## Open Questions
