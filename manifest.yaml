@@ -1,0 +1,35 @@
+version: "1.0.0"
+last_updated: "2026-06-13"
+
+categories:
+
+  - name: architecture
+    description: Current and future state architecture documentation
+    files:
+      - path: architecture/current/overview.md
+        applies_to:
+          - all
+          - architecture-review
+      - path: architecture/future/roadmap.md
+        applies_to:
+          - all
+          - architecture-review
+      - path: architecture/decisions/ADR-0000-template.md
+        applies_to:
+          - architecture-review
+
+  - name: repo-standards
+    description: Repository and code conventions the team follows
+    files:
+      - path: repo-standards/conventions.md
+        applies_to:
+          - all
+          - pipeline-development
+          - code-review
+
+  - name: agent-guidelines
+    description: Guidelines for AI coding agents working in this codebase
+    files:
+      - path: agent-guidelines/general.md
+        applies_to:
+          - all
