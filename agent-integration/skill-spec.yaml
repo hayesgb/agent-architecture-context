@@ -1,0 +1,53 @@
+name: agent-architecture-context
+description: >
+  Platform-agnostic skill contract for fetching architecture guidelines,
+  repo standards, and agent guidelines from the agent-architecture-context
+  repository via the GitHub Contents API. Agents use this contract to
+  discover and retrieve context relevant to their current task before
+  generating code or suggestions.
+
+auth:
+  type: github-pat
+  scope: >
+    Fine-grained Personal Access Token (PAT) with read-only access to the
+    contents of the hayesgb/agent-architecture-context repository.
+    Required permission: Repository > Contents > Read-only.
+  header: "Authorization: Bearer {token}"
+
+endpoints:
+  manifest:
+    description: Fetch the manifest.yaml index to discover available guideline files
+    url: "https://api.github.com/repos/hayesgb/agent-architecture-context/contents/manifest.yaml"
+    method: GET
+    headers:
+      Accept: "application/vnd.github.raw+json"
+      Authorization: "Bearer {token}"
+  file:
+    description: Fetch the raw content of any file referenced in manifest.yaml
+    url: "https://api.github.com/repos/hayesgb/agent-architecture-context/contents/{path}"
+    method: GET
+    headers:
+      Accept: "application/vnd.github.raw+json"
+      Authorization: "Bearer {token}"
+
+output_format:
+  type: raw-text
+  description: >
+    The GitHub Contents API returns raw file content (UTF-8 text) when the
+    Accept header is set to application/vnd.github.raw+json. Agents should
+    treat this as plain Markdown or YAML text and parse accordingly.
+
+workflow:
+  - step: 1
+    action: Fetch manifest.yaml using the 'manifest' endpoint
+  - step: 2
+    action: Parse the YAML. Filter categories.*.files by applies_to matching the current task type
+  - step: 3
+    action: Fetch each relevant file using the 'file' endpoint, substituting {path} with the entry's path field
+  - step: 4
+    action: Use retrieved content as context before generating code or output
+  - step: error
+    condition: HTTP 401 or 403 on any fetch
+    action: >
+      Surface message: "GitHub PAT is missing, expired, or lacks Contents read permission
+      for hayesgb/agent-architecture-context. See agent-integration/README.md."
